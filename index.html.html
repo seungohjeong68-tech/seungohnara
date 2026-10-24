@@ -1,0 +1,468 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>환율 계산 연구소</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F3F6FA; --surface:#FFFFFF; --sunk:#EAF0F7; --line:#D6DFEA;
+  --ink:#13233A; --muted:#56657A; --accent:#0A6BC4; --accent-ink:#FFFFFF;
+  --weak:#C8463C; --strong:#0E7A80; --board:#0F1B2B; --board-ink:#F7C948; --board-sub:#9FB3C8;
+  --focus:#F0A020;
+  --display:"Black Han Sans","IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0D1520; --surface:#152233; --sunk:#1B2B3F; --line:#2A3C52;
+    --ink:#E4ECF5; --muted:#9CAEC2; --accent:#4FA3F0; --accent-ink:#0D1520;
+    --weak:#F07E72; --strong:#43C3C9; --board:#070D16; --board-ink:#F7C948; --board-sub:#8196AD;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0D1520; --surface:#152233; --sunk:#1B2B3F; --line:#2A3C52;
+  --ink:#E4ECF5; --muted:#9CAEC2; --accent:#4FA3F0; --accent-ink:#0D1520;
+  --weak:#F07E72; --strong:#43C3C9; --board:#070D16; --board-ink:#F7C948; --board-sub:#8196AD;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,5vw,40px);line-height:1.1;margin:0;letter-spacing:.01em}
+.lede{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.pill{font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--surface)}
+nav{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+nav button{font:inherit;font-weight:700;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:10px 14px;cursor:pointer;margin-bottom:-1px}
+nav button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:20px}
+@media (max-width:820px){.panel{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:16px;align-content:start}
+h2{font-size:20px;margin:0;text-wrap:balance}
+h3{font-size:15px;margin:0;color:var(--muted);font-weight:700;letter-spacing:.04em}
+.rule{margin:0;padding:10px 14px;background:var(--sunk);border-radius:8px;font-size:15px}
+.rule b{color:var(--accent)}
+.field{display:grid;gap:6px}
+.field label{font-weight:500;display:flex;justify-content:space-between;gap:8px}
+.field .unit{color:var(--muted);font-size:14px}
+.row{display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:center}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=number],select{font:inherit;font-family:var(--mono);font-variant-numeric:tabular-nums;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);text-align:right}
+select{text-align:left;font-family:var(--body)}
+.examples{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:14px;font-weight:500;border:0;background:var(--surface);color:var(--muted);padding:6px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+/* 환전소 전광판 */
+.board{background:var(--board);color:var(--board-ink);border-radius:10px;padding:18px 20px;display:grid;gap:4px}
+.board .pair{font-family:var(--mono);font-size:13px;color:var(--board-sub);letter-spacing:.12em}
+.board .big{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums;font-size:clamp(34px,6vw,48px);line-height:1.1;letter-spacing:.02em}
+.board .sub{font-size:14px;color:var(--board-sub)}
+.verdict{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700}
+.tag{display:inline-block;font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px;border:1.5px solid currentColor}
+.tag.weak{color:var(--weak)} .tag.strong{color:var(--strong)} .tag.flat{color:var(--muted)}
+ol.steps{margin:0;padding-left:1.4em;display:grid;gap:6px;font-variant-numeric:tabular-nums}
+ol.steps li::marker{color:var(--accent);font-weight:700}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+details{border-top:1px dashed var(--line);padding-top:10px}
+summary{cursor:pointer;color:var(--accent);font-weight:500}
+.chart{width:100%;overflow-x:auto}
+.chart svg{display:block;width:100%;height:auto;min-width:300px}
+.memo{margin:0;padding:12px 14px;border-radius:8px;background:var(--sunk);font-weight:700}
+.memo::before{content:"기억 · ";color:var(--accent)}
+.twoup{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:480px){.twoup{grid-template-columns:1fr}}
+.path{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:4px}
+.path.win{border-color:var(--strong);box-shadow:inset 0 0 0 1px var(--strong)}
+.path .amt{font-family:var(--mono);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+/* 연습문제 */
+.quizq{font-size:18px;font-weight:500;margin:0}
+.answer{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.answer input{max-width:220px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 18px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.feedback{padding:12px 14px;border-radius:8px;border:1.5px solid var(--line)}
+.feedback.ok{border-color:var(--strong)} .feedback.no{border-color:var(--weak)}
+.feedback strong.ok{color:var(--strong)} .feedback strong.no{color:var(--weak)}
+.score{display:flex;gap:16px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.score span b{font-family:var(--mono);font-size:20px}
+footer{color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:no-preference){.board .big{transition:color .2s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>환율 계산 연구소</h1>
+      <p class="lede">숫자를 바꿔 보면서 물가·금리가 환율을 어떻게 움직이는지 직접 확인해 보세요. 모든 계산은 풀이 과정과 함께 보여 줍니다.</p>
+    </div>
+    <span class="pill">외환론 5주차 · 제4장 국제금융의 기본원리</span>
+  </header>
+
+  <nav role="tablist" aria-label="계산기 선택">
+    <button role="tab" id="tab-ppp" aria-controls="p-ppp" aria-selected="true">② 구매력평가</button>
+    <button role="tab" id="tab-ife" aria-controls="p-ife" aria-selected="false">④ 국제피셔효과</button>
+    <button role="tab" id="tab-irp" aria-controls="p-irp" aria-selected="false">⑤ 이자율평가(국제금리평가)</button>
+    <button role="tab" id="tab-quiz" aria-controls="p-quiz" aria-selected="false">연습문제</button>
+  </nav>
+
+  <!-- ================= PPP ================= -->
+  <section id="p-ppp" role="tabpanel" aria-labelledby="tab-ppp">
+    <div class="panel">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h2>구매력평가(PPP)</h2>
+          <div class="seg" role="group" aria-label="계산 방식">
+            <button id="ppp-mode-abs" aria-pressed="true">가격으로 (빅맥)</button>
+            <button id="ppp-mode-rel" aria-pressed="false">물가상승률로</button>
+          </div>
+        </div>
+        <div id="ppp-abs-in" class="card" style="padding:0;border:0">
+          <p class="rule">환율 = <b>한국 가격 ÷ 미국 가격</b></p>
+          <div class="field"><label for="pa-kr">한국 가격 <span class="unit">원</span></label>
+            <div class="row"><input type="range" id="pa-kr-r" min="1000" max="15000" step="100" aria-label="한국 가격 슬라이더"><input type="number" id="pa-kr" step="100"></div></div>
+          <div class="field"><label for="pa-us">미국 가격 <span class="unit">달러</span></label>
+            <div class="row"><input type="range" id="pa-us-r" min="1" max="15" step="0.01" aria-label="미국 가격 슬라이더"><input type="number" id="pa-us" step="0.01"></div></div>
+          <div class="field"><label for="pa-s">실제 환율 <span class="unit">원/달러</span></label>
+            <div class="row"><input type="range" id="pa-s-r" min="800" max="1800" step="1" aria-label="실제 환율 슬라이더"><input type="number" id="pa-s" step="1"></div></div>
+          <div class="examples"><span class="muted">교재 예제</span>
+            <button class="chip" data-ex="pa1">예제 1 운동화</button>
+            <button class="chip" data-ex="pa2">예제 2 빅맥</button></div>
+        </div>
+        <div id="ppp-rel-in" class="card" style="padding:0;border:0" hidden>
+          <p class="rule">환율 변화율 ≈ <b>한국 물가상승률 − 미국 물가상승률</b></p>
+          <div class="field"><label for="pr-s">지금 환율 <span class="unit">원/달러</span></label>
+            <div class="row"><input type="range" id="pr-s-r" min="800" max="1800" step="1" aria-label="지금 환율 슬라이더"><input type="number" id="pr-s" step="1"></div></div>
+          <div class="field"><label for="pr-k">한국 물가상승률 <span class="unit">% / 년</span></label>
+            <div class="row"><input type="range" id="pr-k-r" min="-2" max="15" step="0.1" aria-label="한국 물가상승률 슬라이더"><input type="number" id="pr-k" step="0.1"></div></div>
+          <div class="field"><label for="pr-u">미국 물가상승률 <span class="unit">% / 년</span></label>
+            <div class="row"><input type="range" id="pr-u-r" min="-2" max="15" step="0.1" aria-label="미국 물가상승률 슬라이더"><input type="number" id="pr-u" step="0.1"></div></div>
+          <div class="field"><label for="pr-n">몇 년 뒤? <span class="unit">년</span></label>
+            <div class="row"><input type="range" id="pr-n-r" min="1" max="10" step="1" aria-label="기간 슬라이더"><input type="number" id="pr-n" step="1" min="1" max="10"></div></div>
+          <div class="examples"><span class="muted">교재 예제</span>
+            <button class="chip" data-ex="pr3">예제 3 (10% vs 6%)</button>
+            <button class="chip" data-ex="prq">형성평가 (4% vs 2%)</button></div>
+        </div>
+      </div>
+      <div class="card" id="ppp-out" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ================= IFE ================= -->
+  <section id="p-ife" role="tabpanel" aria-labelledby="tab-ife" hidden>
+    <div class="panel">
+      <div class="card">
+        <h2>국제피셔효과(IFE)</h2>
+        <p class="rule">예상 환율 변화율 ≈ <b>한국 금리 − 미국 금리</b></p>
+        <div class="field"><label for="fe-s">지금 환율 <span class="unit">원/달러</span></label>
+          <div class="row"><input type="range" id="fe-s-r" min="800" max="1800" step="1" aria-label="지금 환율 슬라이더"><input type="number" id="fe-s" step="1"></div></div>
+        <div class="field"><label for="fe-k">한국 금리 <span class="unit">% / 년</span></label>
+          <div class="row"><input type="range" id="fe-k-r" min="0" max="15" step="0.1" aria-label="한국 금리 슬라이더"><input type="number" id="fe-k" step="0.1"></div></div>
+        <div class="field"><label for="fe-u">미국 금리 <span class="unit">% / 년</span></label>
+          <div class="row"><input type="range" id="fe-u-r" min="0" max="15" step="0.1" aria-label="미국 금리 슬라이더"><input type="number" id="fe-u" step="0.1"></div></div>
+        <div class="field"><label for="fe-m">맡길 돈 <span class="unit">원</span></label>
+          <input type="number" id="fe-m" step="10000" min="0"></div>
+        <div class="examples"><span class="muted">교재 예제</span>
+          <button class="chip" data-ex="fe5">예제 5 (12% vs 8%)</button>
+          <button class="chip" data-ex="fe6">공짜 점심 (6% vs 4%)</button></div>
+      </div>
+      <div class="card" id="ife-out" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ================= IRP ================= -->
+  <section id="p-irp" role="tabpanel" aria-labelledby="tab-irp" hidden>
+    <div class="panel">
+      <div class="card">
+        <h2>이자율평가 · 국제금리평가(IRP)</h2>
+        <p class="rule">선물환율 = <b>지금 환율 × (1 + 한국 금리) ÷ (1 + 미국 금리)</b></p>
+        <div class="field"><label for="ip-s">지금 환율 <span class="unit">원/달러</span></label>
+          <div class="row"><input type="range" id="ip-s-r" min="800" max="1800" step="1" aria-label="지금 환율 슬라이더"><input type="number" id="ip-s" step="1"></div></div>
+        <div class="field"><label for="ip-k">한국 금리 <span class="unit">% / 년</span></label>
+          <div class="row"><input type="range" id="ip-k-r" min="0" max="15" step="0.1" aria-label="한국 금리 슬라이더"><input type="number" id="ip-k" step="0.1"></div></div>
+        <div class="field"><label for="ip-u">미국 금리 <span class="unit">% / 년</span></label>
+          <div class="row"><input type="range" id="ip-u-r" min="0" max="15" step="0.1" aria-label="미국 금리 슬라이더"><input type="number" id="ip-u" step="0.1"></div></div>
+        <div class="field"><label for="ip-t">기간</label>
+          <select id="ip-t"><option value="1">1개월</option><option value="3">3개월</option><option value="6">6개월</option><option value="12">1년 (12개월)</option></select></div>
+        <div class="field"><label for="ip-f">실제 선물환율 (있으면 입력) <span class="unit">원/달러</span></label>
+          <input type="number" id="ip-f" step="0.1" placeholder="비워 두면 비교 생략"></div>
+        <div class="field"><label for="ip-m">맡길 돈 <span class="unit">원</span></label>
+          <input type="number" id="ip-m" step="10000" min="0"></div>
+        <div class="examples"><span class="muted">교재 예제</span>
+          <button class="chip" data-ex="ip6">예제 6 (1년물)</button>
+          <button class="chip" data-ex="ip7">예제 7 (어느 쪽?)</button>
+          <button class="chip" data-ex="ip3m">3개월물</button></div>
+      </div>
+      <div class="card" id="irp-out" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ================= QUIZ ================= -->
+  <section id="p-quiz" role="tabpanel" aria-labelledby="tab-quiz" hidden>
+    <div class="panel">
+      <div class="card">
+        <h2>연습문제</h2>
+        <p class="muted" style="margin:0">문제 종류를 고르고 <b>새 문제</b>를 누르세요. 숫자는 매번 바뀝니다. 답을 입력하면 채점하고 풀이를 보여 줍니다.</p>
+        <div class="field"><label for="q-type">문제 종류</label>
+          <select id="q-type">
+            <option value="mix">섞어서</option>
+            <option value="abs">빅맥 환율 (구매력평가)</option>
+            <option value="rel">물가로 1년 뒤 환율 (구매력평가)</option>
+            <option value="real">진짜 이자 (피셔효과)</option>
+            <option value="ife">금리로 1년 뒤 환율 (국제피셔효과)</option>
+            <option value="irp">선물환율 (이자율평가)</option>
+          </select></div>
+        <div class="score" aria-live="polite">
+          <span>푼 문제 <b id="sc-n">0</b></span><span>맞힌 문제 <b id="sc-ok">0</b></span><span>연속 정답 <b id="sc-st">0</b></span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="q-new">새 문제</button><button class="btn ghost" id="q-reset">점수 초기화</button></div>
+        <p class="muted" style="margin:0;font-size:14px">채점 기준: 환율은 ±2원, % 문제는 ±0.1%p 안이면 정답. 교재의 간단한 계산(빼기 → 곱하기)으로 풀어도 맞게 채점합니다.</p>
+      </div>
+      <div class="card" id="quiz-out">
+        <h3 id="q-kind">문제</h3>
+        <p class="quizq" id="q-text"></p>
+        <form class="answer" id="q-form">
+          <input type="number" id="q-ans" step="any" aria-label="답 입력" placeholder="답 입력">
+          <span class="muted" id="q-unit"></span>
+          <button class="btn" type="submit">채점</button>
+        </form>
+        <div id="q-fb" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>교재 예제 수치: 예제 2는 2026년 1월 빅맥 가격(출처: 더구루 2026.8.4, The Economist Big Mac Index), 나머지는 강의용 가상 수치입니다. 계산 결과는 이론값이며 실제 환율을 예측하지 않습니다.</footer>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const won=(n,d=2)=>n.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(n,d=2)=>(n>0?'+':'')+n.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d})+'%';
+const num=id=>{const v=parseFloat($(id).value);return isFinite(v)?v:0};
+
+/* ---------- tabs ---------- */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+function openTab(t){tabs.forEach(b=>{const on=b===t;b.setAttribute('aria-selected',on);$(b.getAttribute('aria-controls')).hidden=!on});try{localStorage.setItem('fx-tab',t.id)}catch(e){}}
+tabs.forEach(b=>b.addEventListener('click',()=>openTab(b)));
+tabs.forEach((b,i)=>b.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){const n=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];n.focus();openTab(n)}}));
+const hashMap={ppp:'tab-ppp',ife:'tab-ife',irp:'tab-irp',quiz:'tab-quiz'};
+let start=hashMap[location.hash.slice(1)];
+if(!start){try{start=localStorage.getItem('fx-tab')}catch(e){}}
+if(start&&$(start))openTab($(start));
+
+/* ---------- slider <-> number pairing ---------- */
+function pair(id,onChange){
+  const n=$(id), r=$(id+'-r');
+  if(r){r.addEventListener('input',()=>{n.value=r.value;onChange()});n.addEventListener('input',()=>{r.value=n.value;onChange()})}
+  else n.addEventListener('input',onChange);
+}
+function set(vals){for(const k in vals){$(k).value=vals[k];const r=$(k+'-r');if(r)r.value=vals[k]}}
+
+/* ---------- small SVG helpers ---------- */
+function barsSVG(items,opts={}){ // items: [{label,value,color,text}]
+  const W=520,rowH=46,pad=150,H=items.length*rowH+10;
+  const max=Math.max(...items.map(i=>i.value))*1.18||1;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria||'막대 그래프'}">`;
+  items.forEach((it,k)=>{const y=8+k*rowH,w=Math.max(2,(W-pad-70)*it.value/max);
+    s+=`<text x="${pad-10}" y="${y+22}" text-anchor="end" font-size="14" fill="var(--ink)">${it.label}</text>`;
+    s+=`<rect x="${pad}" y="${y+6}" width="${w}" height="24" rx="4" fill="${it.color}"/>`;
+    s+=`<text x="${pad+w+8}" y="${y+23}" font-size="14" font-weight="700" fill="var(--ink)" font-family="IBM Plex Mono, monospace">${it.text}</text>`;});
+  return s+'</svg>';
+}
+function lineSVG(points,opts){ // points: [{x,y}], years
+  const W=520,H=220,L=64,R=24,T=16,B=36;
+  const ys=points.map(p=>p.y), xs=points.map(p=>p.x);
+  let lo=Math.min(...ys), hi=Math.max(...ys); if(hi-lo<1){hi+=10;lo-=10}
+  const padY=(hi-lo)*.15; lo-=padY; hi+=padY;
+  const X=x=>L+(x-xs[0])/(xs[xs.length-1]-xs[0]||1)*(W-L-R), Y=y=>T+(hi-y)/(hi-lo)*(H-T-B);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria}">`;
+  for(let k=0;k<=3;k++){const v=lo+(hi-lo)*k/3,yy=Y(v);
+    s+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/>`;
+    s+=`<text x="${L-8}" y="${yy+4}" text-anchor="end" font-size="12" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${Math.round(v).toLocaleString('ko-KR')}</text>`;}
+  points.forEach(p=>{s+=`<text x="${X(p.x)}" y="${H-12}" text-anchor="middle" font-size="12" fill="var(--muted)">${p.x}${opts.unit||''}</text>`});
+  const d=points.map((p,i)=>(i?'L':'M')+X(p.x).toFixed(1)+' '+Y(p.y).toFixed(1)).join(' ');
+  const area=d+` L${X(xs[xs.length-1]).toFixed(1)} ${H-B} L${X(xs[0]).toFixed(1)} ${H-B} Z`;
+  s+=`<path d="${area}" fill="${opts.color}" opacity=".12"/>`;
+  s+=`<path d="${d}" fill="none" stroke="${opts.color}" stroke-width="2.5"/>`;
+  const e=points[points.length-1];
+  s+=`<circle cx="${X(e.x)}" cy="${Y(e.y)}" r="5" fill="${opts.color}"/>`;
+  return s+'</svg>';
+}
+function dirTag(change){ // change in exchange rate (%)
+  if(Math.abs(change)<0.005) return '<span class="tag flat">변화 없음</span>';
+  return change>0?'<span class="tag weak">원화 약세 · 환율 ↑</span>':'<span class="tag strong">원화 강세 · 환율 ↓</span>';
+}
+
+/* ================= PPP ================= */
+let pppMode='abs';
+function setPPPMode(m){pppMode=m;$('ppp-mode-abs').setAttribute('aria-pressed',m==='abs');$('ppp-mode-rel').setAttribute('aria-pressed',m==='rel');$('ppp-abs-in').hidden=m!=='abs';$('ppp-rel-in').hidden=m!=='rel';renderPPP()}
+$('ppp-mode-abs').onclick=()=>setPPPMode('abs'); $('ppp-mode-rel').onclick=()=>setPPPMode('rel');
+['pa-kr','pa-us','pa-s','pr-s','pr-k','pr-u','pr-n'].forEach(id=>pair(id,renderPPP));
+
+function renderPPP(){
+  const o=$('ppp-out');
+  if(pppMode==='abs'){
+    const kr=num('pa-kr'),us=num('pa-us'),s=num('pa-s');
+    if(us<=0||s<=0){o.innerHTML='<p>미국 가격과 실제 환율은 0보다 커야 합니다.</p>';return}
+    const ppp=kr/us, gap=(ppp-s)/s*100, usInWon=us*s;
+    const under=ppp<s;
+    o.innerHTML=`
+      <div class="board"><span class="pair">가격으로 계산한 환율 · USD/KRW</span><span class="big">${won(ppp)}</span><span class="sub">실제 환율 ${won(s,0)}원과 비교</span></div>
+      <div class="verdict">${Math.abs(gap)<0.5?'<span class="tag flat">거의 같다</span>':under?'<span class="tag weak">원화 저평가</span>':'<span class="tag strong">원화 고평가</span>'}
+        <span>${Math.abs(gap)<0.5?'두 환율이 거의 같습니다.':under?`원화가 약 ${Math.abs(gap).toFixed(1)}% 싸게 평가되어 있습니다.`:`원화가 약 ${Math.abs(gap).toFixed(1)}% 비싸게 평가되어 있습니다.`}</span></div>
+      <div class="chart">${barsSVG([{label:'가격으로 계산한 환율',value:ppp,color:'var(--weak)',text:won(ppp,0)+'원'},{label:'실제 환율',value:s,color:'var(--accent)',text:won(s,0)+'원'}],{aria:'가격으로 계산한 환율과 실제 환율 비교'})}</div>
+      <div><h3>풀이</h3><ol class="steps">
+        <li>환율 = 한국 가격 ÷ 미국 가격 = <span class="mono">${won(kr,0)} ÷ ${won(us)} = ${won(ppp)}</span>원</li>
+        <li>미국 가격을 원화로 바꾸면 <span class="mono">${won(us)} × ${won(s,0)} = ${won(usInWon,0)}</span>원 → 한국 가격 ${won(kr,0)}원${usInWon>kr?'보다 비쌈 → 한국이 '+won(usInWon-kr,0)+'원 싸다':usInWon<kr?'보다 쌈 → 미국이 '+won(kr-usInWon,0)+'원 싸다':'과 같음'}</li>
+        <li>차이 = (${won(ppp,0)} − ${won(s,0)}) ÷ ${won(s,0)} ≈ <span class="mono">${pct(gap,1)}</span></li>
+      </ol></div>
+      <p class="memo">같은 물건, 같은 값. 계산한 환율 &lt; 실제 환율이면 원화가 싸게 평가된 것</p>
+      <details><summary>왜 실제 환율이 이 값으로 가지 않을까?</summary><p style="margin:.5em 0 0">빅맥 같은 물건은 다른 나라로 보내 되팔 수 없고, 배송비·관세도 있습니다. 그래서 이 계산은 "지금 얼마나 벌어져 있는지"를 재는 온도계로 쓰고, 환율 예측에는 쓰지 않습니다.</p></details>`;
+  } else {
+    const s=num('pr-s'),k=num('pr-k'),u=num('pr-u'),n=Math.min(10,Math.max(1,Math.round(num('pr-n'))||1));
+    const diff=k-u, approx1=s*(1+diff/100), exact1=s*(1+k/100)/(1+u/100);
+    const exactN=s*Math.pow((1+k/100)/(1+u/100),n);
+    const pts=[];for(let y=0;y<=n;y++)pts.push({x:y,y:s*Math.pow((1+k/100)/(1+u/100),y)});
+    o.innerHTML=`
+      <div class="board"><span class="pair">${n}년 뒤 예상 환율 · USD/KRW</span><span class="big">${won(n===1?approx1:exactN)}</span><span class="sub">${n===1?'간단 계산(빼기→곱하기) · 정확한 계산 '+won(exact1)+'원':'정확한 계산 기준 · '+n+'년 동안 매년 적용'}</span></div>
+      <div class="verdict">${dirTag(diff)}<span>${diff>0?'한국 물가가 더 많이 올라 원화의 힘이 약해집니다.':diff<0?'미국 물가가 더 많이 올라 달러의 힘이 약해집니다.':'두 나라 물가가 똑같이 올라 환율이 그대로입니다.'}</span></div>
+      <div class="chart">${lineSVG(pts,{aria:'연도별 예상 환율',color:diff>=0?'var(--weak)':'var(--strong)',unit:'년'})}</div>
+      <div><h3>풀이 (1년 기준)</h3><ol class="steps">
+        <li>물가 차이 = ${k}% − ${u}% = <span class="mono">${pct(diff,1)}</span></li>
+        <li>환율도 약 ${Math.abs(diff).toFixed(1)}% ${diff>=0?'오른다':'내린다'}</li>
+        <li>1년 뒤 환율 ≈ <span class="mono">${won(s,0)} × ${(1+diff/100).toFixed(3)} = ${won(approx1)}</span>원</li>
+      </ol></div>
+      <p class="memo">물가가 많이 오른 나라 돈은 약해진다</p>
+      <details><summary>정확한 계산 보기</summary><p class="mono" style="margin:.5em 0 0">1년: ${won(s,0)} × (1 + ${k/100}) ÷ (1 + ${u/100}) = ${won(exact1)}원${n>1?`<br>${n}년: ${won(s,0)} × (${(1+k/100).toFixed(3)} ÷ ${(1+u/100).toFixed(3)})<sup>${n}</sup> = ${won(exactN)}원`:''}</p></details>`;
+  }
+}
+
+/* ================= IFE ================= */
+['fe-s','fe-k','fe-u','fe-m'].forEach(id=>pair(id,renderIFE));
+function renderIFE(){
+  const s=num('fe-s'),k=num('fe-k'),u=num('fe-u'),m=num('fe-m');
+  const diff=k-u, approx=s*(1+diff/100), exact=s*(1+k/100)/(1+u/100);
+  const krw=m*(1+k/100), usd=m/s*(1+u/100), usdBack=usd*exact;
+  $('ife-out').innerHTML=`
+    <div class="board"><span class="pair">1년 뒤 예상 환율 · USD/KRW</span><span class="big">${won(approx)}</span><span class="sub">간단 계산 · 정확한 계산 ${won(exact)}원</span></div>
+    <div class="verdict">${dirTag(diff)}<span>${diff>0?'금리가 높은 원화가 약해질 것으로 예상됩니다.':diff<0?'금리가 높은 달러가 약해질 것으로 예상됩니다.':'금리가 같아 환율 변화가 예상되지 않습니다.'}</span></div>
+    <div><h3>풀이</h3><ol class="steps">
+      <li>금리 차이 = ${k}% − ${u}% = <span class="mono">${pct(diff,1)}</span></li>
+      <li>금리가 높은 쪽 돈이 약 ${Math.abs(diff).toFixed(1)}% 약해질 것으로 예상</li>
+      <li>1년 뒤 환율 ≈ <span class="mono">${won(s,0)} × ${(1+diff/100).toFixed(3)} = ${won(approx)}</span>원</li>
+    </ol></div>
+    <div><h3>공짜 점심은 없다 · ${won(m,0)}원을 1년 맡기면</h3>
+      <div class="twoup" style="margin-top:8px">
+        <div class="path"><span class="muted">원화 예금 ${k}%</span><span class="amt">${won(krw,0)}원</span><span class="muted" style="font-size:14px">${won(m,0)} × ${(1+k/100).toFixed(3)}</span></div>
+        <div class="path"><span class="muted">달러 예금 ${u}% + 환율 변화</span><span class="amt">${won(usdBack,0)}원</span><span class="muted" style="font-size:14px">$${won(usd)} → 예상 환율 ${won(exact,0)}원으로 환산</span></div>
+      </div>
+      <p class="muted" style="margin:8px 0 0;font-size:14px">정확한 계산으로 예상 환율을 쓰면 두 결과가 같아집니다. 높은 이자는 환율 변화로 되돌려진다는 뜻입니다.</p></div>
+    <p class="memo">금리 높은 나라 돈은 약해질 것으로 예상된다</p>
+    <details><summary>실제로도 늘 이렇게 될까?</summary><p style="margin:.5em 0 0">짧은 기간에는 자주 빗나갑니다. 2024년 8월 엔 캐리 트레이드 청산 때처럼, 빗나간 틈을 노린 거래는 큰 위험을 안고 있습니다.</p></details>`;
+}
+
+/* ================= IRP ================= */
+['ip-s','ip-k','ip-u','ip-f','ip-m'].forEach(id=>pair(id,renderIRP)); $('ip-t').addEventListener('change',renderIRP);
+function renderIRP(){
+  const s=num('ip-s'),k=num('ip-k'),u=num('ip-u'),t=+$('ip-t').value,m=num('ip-m');
+  const fRaw=$('ip-f').value.trim(), fAct=parseFloat(fRaw);
+  const kt=k/100*t/12, ut=u/100*t/12;
+  const F=s*(1+kt)/(1+ut), prem=(F-s)/s*100;
+  const dom=m*(1+kt), usd=m/s, usdEnd=usd*(1+ut);
+  const useF=isFinite(fAct)&&fAct>0?fAct:F;
+  const abroad=usdEnd*useF, compare=isFinite(fAct)&&fAct>0;
+  const per=t===12?'1년':t+'개월';
+  let verdict='';
+  if(compare){
+    const d=abroad-dom;
+    verdict=Math.abs(d)<0.5?'<div class="verdict"><span class="tag flat">균형</span><span>두 길의 결과가 같습니다. 되팔기 이익이 없습니다.</span></div>'
+      :`<div class="verdict"><span class="tag ${d>0?'weak':'strong'}">${d>0?'해외 투자 + 선물환 유리':'국내 예금 유리'}</span><span>${won(Math.abs(d),0)}원 더 받습니다. 실제 선물환율이 계산값보다 ${fAct>F?'높기':'낮기'} 때문입니다.</span></div>`;
+  }
+  $('irp-out').innerHTML=`
+    <div class="board"><span class="pair">${per} 선물환율 (계산값) · USD/KRW</span><span class="big">${won(F)}</span><span class="sub">지금 환율보다 ${pct(prem,2)} · 달러 ${prem>0?'할증(프리미엄)':prem<0?'할인(디스카운트)':'변화 없음'}</span></div>
+    ${verdict}
+    <div><h3>두 갈래 길 · ${won(m,0)}원을 ${per} 맡기면</h3>
+      <div class="twoup" style="margin-top:8px">
+        <div class="path ${compare&&dom>abroad+0.5?'win':''}"><span class="muted">① 한국 예금 (${per} ${(kt*100).toFixed(2)}%)</span><span class="amt">${won(dom,0)}원</span><span class="muted" style="font-size:14px">${won(m,0)} × ${(1+kt).toFixed(4)}</span></div>
+        <div class="path ${compare&&abroad>dom+0.5?'win':''}"><span class="muted">② 달러로 바꿔 미국 예금 (${(ut*100).toFixed(2)}%) + 선물환</span><span class="amt">${won(abroad,0)}원</span><span class="muted" style="font-size:14px">$${won(usd)} → $${won(usdEnd)} × ${won(useF)}${compare?' (실제 선물환율)':' (계산값)'}</span></div>
+      </div></div>
+    <div><h3>풀이</h3><ol class="steps">
+      ${t!==12?`<li>기간에 맞게 금리 바꾸기: 한국 ${k}% × ${t}/12 = ${(kt*100).toFixed(3)}%, 미국 ${u}% × ${t}/12 = ${(ut*100).toFixed(3)}%</li>`:''}
+      <li>한국 예금 결과: 1달러어치 ${won(s,0)}원 × ${(1+kt).toFixed(4)} = <span class="mono">${won(s*(1+kt))}</span>원</li>
+      <li>미국 예금 결과: 1달러 → <span class="mono">${(1+ut).toFixed(4)}</span>달러</li>
+      <li>두 결과가 같아야 하므로 ${(1+ut).toFixed(4)} × 선물환율 = ${won(s*(1+kt))} → 선물환율 = <span class="mono">${won(F)}</span>원</li>
+    </ol></div>
+    <p class="memo">금리 차이만큼 선물환율이 정해진다 (선물환 = 환율 예약)</p>
+    <details><summary>간단 계산으로 확인하기</summary><p style="margin:.5em 0 0">선물환율 ≈ 지금 환율 × (1 + 금리 차이) = ${won(s,0)} × ${(1+kt-ut).toFixed(4)} ≈ <span class="mono">${won(s*(1+kt-ut))}</span>원. 금리가 낮을 때는 정확한 값과 거의 같습니다.</p></details>`;
+}
+
+/* ================= examples ================= */
+const EX={
+  pa1:()=>{setPPPMode('abs');set({'pa-kr':140000,'pa-us':100,'pa-s':1470})},
+  pa2:()=>{setPPPMode('abs');set({'pa-kr':5500,'pa-us':6.12,'pa-s':1470})},
+  pr3:()=>{setPPPMode('rel');set({'pr-s':1000,'pr-k':10,'pr-u':6,'pr-n':1})},
+  prq:()=>{setPPPMode('rel');set({'pr-s':1300,'pr-k':4,'pr-u':2,'pr-n':1})},
+  fe5:()=>set({'fe-s':1000,'fe-k':12,'fe-u':8}),
+  fe6:()=>set({'fe-s':1000,'fe-k':6,'fe-u':4}),
+  ip6:()=>{set({'ip-s':1140,'ip-k':4,'ip-u':3,'ip-f':''});$('ip-t').value='12'},
+  ip7:()=>{set({'ip-s':1000,'ip-k':3,'ip-u':1,'ip-f':1050});$('ip-t').value='12'},
+  ip3m:()=>{set({'ip-s':1200,'ip-k':3,'ip-u':2,'ip-f':''});$('ip-t').value='3'},
+};
+document.querySelectorAll('[data-ex]').forEach(b=>b.addEventListener('click',()=>{EX[b.dataset.ex]();renderPPP();renderIFE();renderIRP()}));
+// pa-kr slider max must fit 140,000
+$('pa-kr').addEventListener('input',()=>{const r=$('pa-kr-r');if(+$('pa-kr').value>+r.max)r.max=Math.ceil(+$('pa-kr').value/1000)*1000});
+const _set=set; set=function(v){if(v['pa-kr']&&v['pa-kr']>+$('pa-kr-r').max)$('pa-kr-r').max=Math.ceil(v['pa-kr']/1000)*1000;if(v['pa-us']&&v['pa-us']>+$('pa-us-r').max)$('pa-us-r').max=Math.ceil(v['pa-us']);_set(v)};
+
+/* ================= quiz ================= */
+const rnd=(a,b,step=1)=>Math.round((a+Math.random()*(b-a))/step)*step;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const GEN={
+  abs(){const us=pick([4,5,5.5,6,6.5]),rate=rnd(900,1400,50),kr=Math.round(us*rate/100)*100;
+    const ans=kr/us;return{kind:'빅맥 환율 · 구매력평가',text:`한국 빅맥이 ${won(kr,0)}원, 미국 빅맥이 ${us}달러일 때 빅맥으로 계산한 환율은 1달러당 몇 원일까?`,unit:'원',ans,tol:2,
+      sol:[`환율 = 한국 가격 ÷ 미국 가격`,`${won(kr,0)} ÷ ${us} = ${won(ans)}원`]}},
+  rel(){const s=rnd(1000,1450,50),k=rnd(1,8,0.5),u=rnd(0.5,6,0.5);const d=k-u,ans=s*(1+d/100),ex=s*(1+k/100)/(1+u/100);
+    return{kind:'물가로 1년 뒤 환율 · 구매력평가',text:`지금 환율 ${won(s,0)}원, 한국 물가상승률 ${k}%, 미국 물가상승률 ${u}%가 예상된다. 1년 뒤 환율은 약 몇 원일까?`,unit:'원',ans,alt:ex,tol:2,
+      sol:[`물가 차이 = ${k}% − ${u}% = ${pct(d,1)}`,`${won(s,0)} × ${(1+d/100).toFixed(3)} = ${won(ans)}원`,`(정확한 계산: ${won(ex)}원도 정답)`]}},
+  real(){const i=rnd(2,9,0.5),p=rnd(0.5,i-0.5,0.5);return{kind:'진짜 이자 · 피셔효과',text:`예금 금리가 ${i}%이고 물가상승률이 ${p}%로 예상될 때, 실질금리(진짜 이자)는 몇 %일까?`,unit:'%',ans:i-p,tol:0.1,
+      sol:[`실질금리 = 명목금리 − 예상 물가상승률`,`${i}% − ${p}% = ${(i-p).toFixed(1)}%`]}},
+  ife(){const s=rnd(1000,1450,50),k=rnd(1,10,0.5),u=rnd(0.5,8,0.5);const d=k-u,ans=s*(1+d/100),ex=s*(1+k/100)/(1+u/100);
+    return{kind:'금리로 1년 뒤 환율 · 국제피셔효과',text:`지금 환율 ${won(s,0)}원, 한국 금리 ${k}%, 미국 금리 ${u}%이다. 국제피셔효과에 따르면 1년 뒤 예상 환율은 약 몇 원일까?`,unit:'원',ans,alt:ex,tol:2,
+      sol:[`금리 차이 = ${k}% − ${u}% = ${pct(d,1)}`,`${won(s,0)} × ${(1+d/100).toFixed(3)} = ${won(ans)}원`,`(정확한 계산: ${won(ex)}원도 정답)`]}},
+  irp(){const s=rnd(1000,1450,10),k=rnd(1,8,0.5),u=rnd(0.5,6,0.5),t=pick([12,12,6,3]);const kt=k/100*t/12,ut=u/100*t/12;const ans=s*(1+kt)/(1+ut),ap=s*(1+kt-ut);
+    return{kind:'선물환율 · 이자율평가',text:`지금 환율 ${won(s,0)}원, 한국 금리 연 ${k}%, 미국 금리 연 ${u}%이다. ${t===12?'1년':t+'개월'} 선물환율은 약 몇 원일까?`,unit:'원',ans,alt:ap,tol:2,
+      sol:[...(t!==12?[`기간 금리: 한국 ${(kt*100).toFixed(3)}%, 미국 ${(ut*100).toFixed(3)}%`]:[]),`선물환율 = ${won(s,0)} × ${(1+kt).toFixed(4)} ÷ ${(1+ut).toFixed(4)} = ${won(ans)}원`,`(간단 계산: ${won(ap)}원도 정답)`]}},
+};
+let Q=null, score={n:0,ok:0,st:0};
+try{const saved=JSON.parse(localStorage.getItem('fx-score')||'null');if(saved)score=saved}catch(e){}
+function showScore(){$('sc-n').textContent=score.n;$('sc-ok').textContent=score.ok;$('sc-st').textContent=score.st;try{localStorage.setItem('fx-score',JSON.stringify(score))}catch(e){}}
+function newQ(focus=true){let t=$('q-type').value;if(t==='mix')t=pick(Object.keys(GEN));Q=GEN[t]();
+  $('q-kind').textContent=Q.kind;$('q-text').textContent=Q.text;$('q-unit').textContent=Q.unit;$('q-ans').value='';$('q-fb').hidden=true;if(focus)$('q-ans').focus({preventScroll:true})}
+$('q-new').onclick=()=>newQ(); $('q-type').onchange=()=>newQ();
+$('q-reset').onclick=()=>{score={n:0,ok:0,st:0};showScore()};
+$('q-form').addEventListener('submit',e=>{e.preventDefault();if(!Q)return;
+  const v=parseFloat($('q-ans').value);const fb=$('q-fb');
+  if(!isFinite(v)){fb.hidden=false;fb.className='feedback no';fb.innerHTML='<strong class="no">숫자를 입력해 주세요.</strong>';return}
+  const ok=Math.abs(v-Q.ans)<=Q.tol||(Q.alt!==undefined&&Math.abs(v-Q.alt)<=Q.tol);
+  score.n++;if(ok){score.ok++;score.st++}else score.st=0;showScore();
+  fb.hidden=false;fb.className='feedback '+(ok?'ok':'no');
+  fb.innerHTML=`<strong class="${ok?'ok':'no'}">${ok?'정답입니다!':'다시 생각해 봐요. 정답은 약 '+(Q.unit==='%'?Q.ans.toFixed(1):won(Q.ans))+Q.unit+'입니다.'}</strong><ol class="steps" style="margin-top:8px">${Q.sol.map(x=>`<li>${x}</li>`).join('')}</ol>`;
+});
+
+/* ---------- initial state (교재 예제) ---------- */
+set({'pa-kr':5500,'pa-us':6.12,'pa-s':1470,'pr-s':1000,'pr-k':10,'pr-u':6,'pr-n':1,
+     'fe-s':1000,'fe-k':12,'fe-u':8,'fe-m':1000000,
+     'ip-s':1140,'ip-k':4,'ip-u':3,'ip-m':1000000});
+$('ip-t').value='12';
+renderPPP();renderIFE();renderIRP();showScore();newQ(false);
+})();
+</script>
+
+</body></html>
